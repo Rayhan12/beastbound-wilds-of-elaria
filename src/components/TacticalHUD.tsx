@@ -22,6 +22,7 @@ interface TacticalHUDProps {
   onTriggerAttack: () => void;
   onTriggerHunterSense: () => void;
   onTriggerPotion: (type: 'health' | 'stamina') => void;
+  onNextLevel?: () => void;
 }
 
 export const TacticalHUD: React.FC<TacticalHUDProps> = ({
@@ -41,6 +42,7 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
   onTriggerAttack,
   onTriggerHunterSense,
   onTriggerPotion,
+  onNextLevel,
 }) => {
   const biomeMeta = BIOMES[region.biome] || BIOMES['greenwild'];
 
@@ -53,6 +55,13 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
   const minutes = Math.floor((world.gameTimeHours % 1) * 60);
   const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   const isNight = hours >= 20 || hours < 6;
+
+  // Level status
+  const aliveMonsters = world.monsters.filter((m) => m.health > 0).length;
+  const isLevelCompleted =
+    Boolean(world.levelCompleted) ||
+    (world.monsters.length > 0 && aliveMonsters === 0) ||
+    (world.bossEntity ? world.bossEntity.health <= 0 : false);
 
   // Active Boss in Combat
   const activeBoss = world.monsters.find(
@@ -286,9 +295,18 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
 
           {/* Radar Beast Contacts */}
           <div className="bg-[#05070a]/60 border border-cyan-900/80 p-3 backdrop-blur-sm">
-            <h3 className="text-xs font-bold text-cyan-400 mb-2 border-b border-cyan-900/60 pb-1 uppercase tracking-wider">
-              Sensor Radar Contacts
-            </h3>
+            <div className="flex justify-between items-center mb-2 border-b border-cyan-900/60 pb-1">
+              <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
+                Sector Radar
+              </h3>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 border ${
+                isLevelCompleted
+                  ? 'bg-emerald-950/80 border-emerald-400 text-emerald-300'
+                  : 'bg-cyan-950/80 border-cyan-700 text-cyan-300'
+              }`}>
+                {isLevelCompleted ? 'CLEARED' : `${aliveMonsters} BEASTS`}
+              </span>
+            </div>
             <div className="space-y-1.5">
               {radarContacts.length === 0 ? (
                 <div className="text-[10px] text-cyan-700">No beast signatures nearby</div>
@@ -492,6 +510,27 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
           })}
         </div>
       </footer>
+
+      {/* LEVEL COMPLETED - GO TO NEXT LEVEL BUTTON (BOTTOM RIGHT CORNER) */}
+      {isLevelCompleted && onNextLevel && (
+        <div className="fixed bottom-6 right-6 z-50 pointer-events-auto">
+          <button
+            onClick={onNextLevel}
+            id="btn-next-level"
+            className="group relative px-6 py-3.5 bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:via-teal-300 hover:to-cyan-400 text-black font-black uppercase tracking-wider text-xs md:text-sm shadow-[0_0_35px_rgba(16,185,129,0.85)] border-2 border-white flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 cursor-pointer rounded animate-pulse"
+          >
+            <span className="w-3.5 h-3.5 rounded-full bg-white shadow-[0_0_12px_#fff] animate-ping" />
+            <div className="text-left leading-tight">
+              <div className="text-[10px] text-black/75 font-mono font-bold tracking-widest">
+                SECTOR SECURED ({region.name})
+              </div>
+              <div className="text-xs md:text-sm font-black text-black">
+                Level completed, go to the next level →
+              </div>
+            </div>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

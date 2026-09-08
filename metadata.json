@@ -2,5 +2,7 @@
   "name": "Beastbound: Wilds of Elaria",
   "description": "A retro-inspired top-down action RPG where you hunt dangerous beasts across 100 regions, master combat skills, craft legendary gear, and uncover the corruption of Elaria.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

@@ -136,6 +136,38 @@ export default function App() {
     saveCharacter(updated);
   };
 
+  const handleNextLevel = () => {
+    const nextRegionId = currentRegionId < ALL_REGIONS.length ? currentRegionId + 1 : 1;
+    const nextRegion = ALL_REGIONS.find((r) => r.id === nextRegionId) || ALL_REGIONS[0];
+    soundEngine.playLevelUp();
+    
+    // Partial health restoration and full stamina for clearing the level
+    const healedHealth = Math.min(char.stats.maxHealth, char.stats.health + Math.floor(char.stats.maxHealth * 0.4));
+    const nextChar = {
+      ...char,
+      currentRegionId: nextRegionId,
+      stats: {
+        ...char.stats,
+        health: healedHealth,
+        stamina: char.stats.maxStamina,
+      },
+    };
+    if (!nextChar.discoveredRegions.includes(nextRegionId)) {
+      nextChar.discoveredRegions.push(nextRegionId);
+    }
+    if (!nextChar.discoveredCamps.includes(nextRegionId)) {
+      nextChar.discoveredCamps.push(nextRegionId);
+    }
+    
+    setCurrentRegionId(nextRegionId);
+    setChar(nextChar);
+    saveCharacter(nextChar);
+    worldRef.current = initGameWorld(nextRegion, nextChar);
+
+    setSaveNotification(`LEVEL COMPLETED! ADVANCED TO ${nextRegion.name.toUpperCase()}`);
+    setTimeout(() => setSaveNotification(null), 3500);
+  };
+
   return (
     <div className="fixed inset-0 w-full h-full overflow-hidden bg-[#05070a] text-cyan-400 font-mono select-none">
       {/* 60 FPS HTML5 Canvas Game World */}
@@ -182,6 +214,7 @@ export default function App() {
           if (type === 'health') inputRef.current.potionHealthTriggered = true;
           if (type === 'stamina') inputRef.current.potionStaminaTriggered = true;
         }}
+        onNextLevel={handleNextLevel}
       />
 
       {/* Save Toast Notification */}

@@ -55,6 +55,8 @@ export interface GameWorldState {
   perfectDodgeWindow: number;
   guaranteedNextCrit: boolean;
   bossEntity: RuntimeMonster | null;
+  levelCompleted: boolean;
+  totalMonsters: number;
 }
 
 export const createInitialWorld = initGameWorld;
@@ -180,6 +182,8 @@ export function initGameWorld(region: RegionInfo, char: HunterCharacter): GameWo
     perfectDodgeWindow: 0,
     guaranteedNextCrit: false,
     bossEntity: monsters.find((m) => m.isBoss) || null,
+    levelCompleted: false,
+    totalMonsters: monsters.length,
   };
 }
 
@@ -400,7 +404,7 @@ export function updateGameWorld(
     if (isRanged) {
       if (char.archetype === 'ranger') {
         soundEngine.playArrowShoot();
-        const arrowSpeed = 650;
+        const arrowSpeed = 550;
         world.projectiles.push({
           id: `proj_${Date.now()}`,
           x: world.playerX,
@@ -411,13 +415,13 @@ export function updateGameWorld(
           color: '#fbbf24',
           damage: char.stats.attack,
           isPlayer: true,
-          lifetime: 1.5,
+          lifetime: 0.36, // ~198px range: just slightly beyond target attack reach (3m vs 2m)
           element: 'physical',
         });
       } else {
         // Arcanist magic bolt
         soundEngine.playSpellCast();
-        const spellSpeed = 500;
+        const spellSpeed = 480;
         world.projectiles.push({
           id: `proj_${Date.now()}`,
           x: world.playerX,
@@ -428,7 +432,7 @@ export function updateGameWorld(
           color: '#38bdf8',
           damage: Math.floor(char.stats.attack * 1.15),
           isPlayer: true,
-          lifetime: 1.8,
+          lifetime: 0.40, // ~192px range: just slightly beyond target attack reach (3m vs 2m)
           element: 'frost',
         });
       }
@@ -1083,8 +1087,12 @@ function handleMonsterDeath(world: GameWorldState, char: HunterCharacter, m: Run
   char.gold += m.def.goldReward;
   const xpReward = m.def.xpReward;
 
+  // Award EXP and trigger Level Up math
+  const { updated, leveledUp } = awardExperience(char, xpReward);
+  Object.assign(char, updated);
+
   world.floatingTexts.push({
-    id: `xp_${Date.now()}`,
+    id: `xp_${Date.now()}_${Math.random()}`,
     x: m.x,
     y: m.y - 40,
     text: `+${xpReward} XP  +${m.def.goldReward} Gold`,
@@ -1093,6 +1101,49 @@ function handleMonsterDeath(world: GameWorldState, char: HunterCharacter, m: Run
     lifetime: 1.6,
     vy: -30,
   });
+
+  if (leveledUp) {
+    soundEngine.playLevelUp();
+    world.screenShake = 14;
+    world.floatingTexts.push({
+      id: `lvl_${Date.now()}`,
+      x: world.playerX,
+      y: world.playerY - 55,
+      text: `★ LEVEL UP! LVL ${char.level} ★`,
+      color: '#fbbf24',
+      size: 22,
+      lifetime: 2.8,
+      vy: -22,
+    });
+    world.floatingTexts.push({
+      id: `pts_${Date.now()}`,
+      x: world.playerX,
+      y: world.playerY - 30,
+      text: `+1 SKILL PT  +3 ATTR PTS`,
+      color: '#22d3ee',
+      size: 16,
+      lifetime: 2.4,
+      vy: -18,
+    });
+
+    // Level-up celebration spark burst
+    for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * Math.PI * 2;
+      const speed = 70 + Math.random() * 80;
+      world.particles.push({
+        x: world.playerX,
+        y: world.playerY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 3.5,
+        color: i % 2 === 0 ? '#fbbf24' : '#22d3ee',
+        alpha: 1,
+        life: 0,
+        maxLife: 0.7,
+        shape: 'spark',
+      });
+    }
+  }
 
   // Drop loot items
   m.def.drops.forEach((drop) => {
@@ -1153,6 +1204,31 @@ function handleMonsterDeath(world: GameWorldState, char: HunterCharacter, m: Run
       lifetime: 3.0,
       vy: -20,
     });
+  }
+
+  // Check if Level is Cleared (all monsters in this region dead or regional boss defeated)
+  const remainingBeasts = world.monsters.filter((mon) => mon.id !== m.id && mon.health > 0).length;
+  if (remainingBeasts === 0 || m.isBoss) {
+    world.levelCompleted = true;
+    soundEngine.playQuestComplete();
+    world.floatingTexts.push({
+      id: `clear_${Date.now()}`,
+      x: world.playerX,
+      y: world.playerY - 80,
+      text: '★ LEVEL COMPLETED! READY FOR NEXT LEVEL ★',
+      color: '#22c55e',
+      size: 22,
+      lifetime: 3.5,
+      vy: -15,
+    });
+  }
+
+  // Save character state to localStorage
+  saveCharacter(char);
+
+  // Notify UI
+  if (activeCharUpdateCallback) {
+    activeCharUpdateCallback({ ...char });
   }
 }
 
