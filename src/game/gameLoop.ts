@@ -415,7 +415,7 @@ export function updateGameWorld(
           color: '#fbbf24',
           damage: char.stats.attack,
           isPlayer: true,
-          lifetime: 0.36, // ~198px range: just slightly beyond target attack reach (3m vs 2m)
+          lifetime: 0.54, // Increased by 1.5x (~297px range)
           element: 'physical',
         });
       } else {
@@ -432,7 +432,7 @@ export function updateGameWorld(
           color: '#38bdf8',
           damage: Math.floor(char.stats.attack * 1.15),
           isPlayer: true,
-          lifetime: 0.40, // ~192px range: just slightly beyond target attack reach (3m vs 2m)
+          lifetime: 0.60, // Increased by 1.5x (~288px range)
           element: 'frost',
         });
       }
